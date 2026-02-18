@@ -1450,8 +1450,8 @@ class ModmailBot(commands.Bot):
             del self._plugin_handled_dm[message.author.id]
             return
     
-            if message.type == discord.MessageType.pins_add and message.author == self.user:
-        await message.delete()
+        if message.type == discord.MessageType.pins_add and message.author == self.user:
+            await message.delete()
 
                 if (
             (f"<@{self.user.id}" in message.content or f"<@!{self.user.id}" in message.content)
