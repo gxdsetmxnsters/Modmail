@@ -1443,6 +1443,11 @@ class ModmailBot(commands.Bot):
 
     async def on_message(self, message):
         await self.wait_for_connected()
+    if not hasattr(self, '_plugin_handled_dm'):
+        self._plugin_handled_dm = {}
+    if self._plugin_handled_dm.get(message.author.id):
+        del self._plugin_handled_dm[message.author.id]
+        return
         if message.type == discord.MessageType.pins_add and message.author == self.user:
             await message.delete()
 
