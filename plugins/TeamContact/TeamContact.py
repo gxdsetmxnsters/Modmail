@@ -91,7 +91,6 @@ class TeamSelect(ui.Select):
 
         await thread_channel.send(content=f"<@&{selected['role_id']}>", embed=embed)
 
-        # Disable dropdown after selection
         self.disabled = True
         await interaction.message.edit(view=self.view)
 
@@ -102,8 +101,8 @@ class TeamSelect(ui.Select):
 
 class TeamSelectView(ui.View):
     def __init__(self, bot, guild):
-    super().__init__(timeout=None)
-    self.add_item(TeamSelect(bot, guild))
+        super().__init__(timeout=None)
+        self.add_item(TeamSelect(bot, guild))
 
 
 class TeamContact(commands.Cog):
@@ -112,15 +111,23 @@ class TeamContact(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message):
-        # Ignore bots and messages that aren't DMs
         if message.author.bot:
             return
         if not isinstance(message.channel, discord.DMChannel):
             return
 
-        # Only send the dropdown if this is their first message (no existing thread)
-        guild = discord.utils.get(self.bot.guilds)  # gets your server
+        guild = discord.utils.get(self.bot.guilds)
 
+        # Check if user already has an open thread in any team category
+        for team in TEAMS:
+            category = guild.get_channel(team["category_id"])
+            if category:
+                existing = discord.utils.get(category.text_channels, topic=str(message.author.id))
+                if existing:
+                    # Thread already exists, let Modmail handle it normally
+                    return
+
+        # No existing thread, send the dropdown
         embed = discord.Embed(
             title="Contact a Team",
             description="Please select which team you'd like to contact below.",
@@ -129,12 +136,9 @@ class TeamContact(commands.Cog):
 
         await message.channel.send(embed=embed, view=TeamSelectView(self.bot, guild))
 
+        # Stop Modmail from also creating a thread
+        raise commands.CommandError("Plugin handled this message.")
+
 
 async def setup(bot):
     await bot.add_cog(TeamContact(bot))
-```
-
-Then reload:
-```
-&plugin remove TeamContact
-&plugin add gxdsetmxnsters/Modmail/TeamContact
