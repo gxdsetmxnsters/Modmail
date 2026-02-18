@@ -1,21 +1,21 @@
-
 import discord
 from discord.ext import commands
-from discord import ui, app_commands
+from discord import ui
 
-EAMS = [
+
+TEAMS = [
     {
         "label": "Mod Ticket",
         "value": "mod_ticket",
-        "description": "Choose this for any server inquiries, member reports and concerns, internal server issues, verification issues, or any questions you don't feel comfortable asking staff in public.",
+        "description": "Choose this for any server inquiries, member reports and concerns.",
         "emoji": "",
-        "role_id": ,      # ← mod role to ping
-        "category_id": 1448796872868106441,  # ← category where thread opens
+        "role_id": ,
+        "category_id": 1448796872868106441,
     },
     {
         "label": "Admin Ticket",
         "value": "admin_ticket",
-        "description": "Choose this for staff member reports or any questions you don't feel comfortable asking admin in public.",
+        "description": "Choose this for staff member reports or questions you don't feel comfortable asking admin in public.",
         "emoji": "",
         "role_id": ,
         "category_id": 1404641109535363186,
@@ -29,12 +29,12 @@ EAMS = [
         "category_id": 1473499554052702218,
     },
 ]
-# ───────────────────────────────────────────────────────────────────────────────
 
 
 class TeamSelect(ui.Select):
-    def __init__(self, bot):
+    def __init__(self, bot, guild):
         self.bot = bot
+        self.guild = guild
         options = [
             discord.SelectOption(
                 label=t["label"],
@@ -45,95 +45,96 @@ class TeamSelect(ui.Select):
             for t in TEAMS
         ]
         super().__init__(
-            placeholder="Make A Selection:",
+            placeholder="Make a selection...",
             min_values=1,
             max_values=1,
             options=options,
         )
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=False)
 
         selected = next(t for t in TEAMS if t["value"] == self.values[0])
 
-        guild = interaction.guild
         user = interaction.user
+        guild = self.guild
 
-        # Get the category for this team
         category = guild.get_channel(selected["category_id"])
         if not category or not isinstance(category, discord.CategoryChannel):
             return await interaction.followup.send(
-                "❌ Could not find that team's category. Please contact an admin.",
-                ephemeral=True,
+                "❌ Could not find that team's category. Please contact an admin."
             )
 
-        # Check if a thread already exists for this user in this category
         existing = discord.utils.get(category.text_channels, topic=str(user.id))
         if existing:
             return await interaction.followup.send(
-                f"❌ You already have an open thread with **{selected['label']}**: {existing.mention}",
-                ephemeral=True,
+                f"❌ You already have an open thread with **{selected['label']}**: {existing.mention}"
             )
 
-        # Create the thread channel inside the category
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
-            user: discord.PermissionOverwrite(read_messages=False),  # user doesn't see it directly, mod team handles it
             guild.get_role(selected["role_id"]): discord.PermissionOverwrite(read_messages=True, send_messages=True),
             guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True),
         }
 
         thread_channel = await category.create_text_channel(
             name=f"{user.name}-{selected['value']}",
-            topic=str(user.id),  # store user ID in topic for duplicate checking
+            topic=str(user.id),
             overwrites=overwrites,
         )
 
-        # Send an embed inside the new thread channel
-        embed = discord.Embed(
-            title="New Ticket Opened!",
-            color=discord.Color.blurple(),
-        )
+        embed = discord.Embed(title="📨 New Ticket", color=discord.Color.blurple())
         embed.add_field(name="User", value=f"{user.mention} (`{user}`)", inline=True)
         embed.add_field(name="Team", value=selected["label"], inline=True)
         embed.add_field(name="User ID", value=str(user.id), inline=True)
         embed.set_thumbnail(url=user.display_avatar.url)
-        embed.set_footer(text="Use this channel to communicate with the user via Modmail.")
 
-        await thread_channel.send(
-            content=f"<@&{selected['role_id']}>",
-            embed=embed,
-        )
+        await thread_channel.send(content=f"<@&{selected['role_id']}>", embed=embed)
 
-        # Disable dropdown after use
+        # Disable dropdown after selection
         self.disabled = True
         await interaction.message.edit(view=self.view)
 
         await interaction.followup.send(
-            f"✅ Your request has been sent to **{selected['label']}**! They'll be in touch soon.",
-            ephemeral=True,
+            f"✅ Your ticket has been sent to **{selected['label']}**! They'll be in touch soon."
         )
 
 
 class TeamSelectView(ui.View):
-    def __init__(self, bot):
+    def __init__(self, bot, guild):
         super().__init__(timeout=None)
-        self.add_item(TeamSelect(bot))
+        self.add_item(TeamSelect(bot, guild))
 
 
-class DropdownPlugin(commands.Cog):
+class TeamContact(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="dropdown", description="Make A Selection")
-    async def dropdown(self, interaction: discord.Interaction):
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        # Ignore bots and messages that aren't DMs
+        if message.author.bot:
+            return
+        if not isinstance(message.channel, discord.DMChannel):
+            return
+
+        # Only send the dropdown if this is their first message (no existing thread)
+        guild = discord.utils.get(self.bot.guilds)  # gets your server
+
         embed = discord.Embed(
-            title="What Kind of Ticket Do You Want to Open?",
-            description="Make A Selection",
+            title="Contact a Team",
+            description="Please select which team you'd like to contact below.",
             color=discord.Color.dark_grey(),
         )
-        await interaction.response.send_message(embed=embed, view=TeamSelectView(self.bot))
+
+        await message.channel.send(embed=embed, view=TeamSelectView(self.bot, guild))
 
 
 async def setup(bot):
-    await bot.add_cog(DropdownPlugin(bot))
+    await bot.add_cog(TeamContact(bot))
+```
+
+Then reload:
+```
+&plugin remove TeamContact
+&plugin add gxdsetmxnsters/Modmail/TeamContact
