@@ -1442,8 +1442,8 @@ class ModmailBot(commands.Bot):
         await self.config.update()
 
     async def on_message(self, message):
-    await self.wait_for_connected()
-    
+        await self.wait_for_connected()
+
         if not hasattr(self, '_plugin_handled_dm'):
             self._plugin_handled_dm = {}
         if self._plugin_handled_dm.get(message.author.id):
