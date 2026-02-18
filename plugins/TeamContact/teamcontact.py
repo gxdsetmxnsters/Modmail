@@ -102,8 +102,8 @@ class TeamSelect(ui.Select):
 
 class TeamSelectView(ui.View):
     def __init__(self, bot, guild):
-        super().__init__(timeout=None)
-        self.add_item(TeamSelect(bot, guild))
+    super().__init__(timeout=None)
+    self.add_item(TeamSelect(bot, guild))
 
 
 class TeamContact(commands.Cog):
