@@ -127,17 +127,18 @@ class TeamContact(commands.Cog):
                     # Thread already exists, let Modmail handle it normally
                     return
 
+        # Flag this message as handled so Modmail's core skips it
+        if not hasattr(self.bot, '_plugin_handled_dm'):
+            self.bot._plugin_handled_dm = {}
+        self.bot._plugin_handled_dm[message.author.id] = True
+
         # No existing thread, send the dropdown
         embed = discord.Embed(
             title="Contact a Team",
             description="Please select which team you'd like to contact below.",
             color=discord.Color.dark_grey(),
         )
-
         await message.channel.send(embed=embed, view=TeamSelectView(self.bot, guild))
-
-        # Stop Modmail from also creating a thread
-        raise commands.CommandError("Plugin handled this message.")
 
 
 async def setup(bot):
